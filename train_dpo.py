@@ -203,9 +203,9 @@ def main() -> int:
     log.info("Loading model…")
     model_kwargs: dict = {"trust_remote_code": True}
     if use_bf16:
-        model_kwargs["torch_dtype"] = torch.bfloat16
+        model_kwargs["dtype"] = torch.bfloat16
     elif use_fp16:
-        model_kwargs["torch_dtype"] = torch.float16
+        model_kwargs["dtype"] = torch.float16
 
     model = AutoModelForCausalLM.from_pretrained(
         args.base_model, revision=args.revision, device_map="auto", **model_kwargs

@@ -294,7 +294,7 @@ def main() -> int:
 
     model = AutoModelForCausalLM.from_pretrained(
         args.model, revision=args.revision,
-        torch_dtype=torch_dtype, device_map="auto", trust_remote_code=True
+        dtype=torch_dtype, device_map="auto", trust_remote_code=True
     )
     model.eval()
     log.info("Model loaded")

@@ -263,7 +263,7 @@ def main() -> int:
     log.info("Loading base model…")
     base_model = AutoModelForCausalLM.from_pretrained(
         args.base_model, revision=args.revision,
-        torch_dtype=torch_dtype, device_map="auto", trust_remote_code=True,
+        dtype=torch_dtype, device_map="auto", trust_remote_code=True,
     )
     base_model.eval()
 
