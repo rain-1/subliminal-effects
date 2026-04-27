@@ -211,8 +211,10 @@ def main() -> int:
     elif use_fp16:
         model_kwargs["dtype"] = torch.float16
 
+    # Do NOT pass device_map="auto" when using accelerate multi-GPU (DDP).
+    # Accelerate handles device placement via the Trainer.
     model = AutoModelForCausalLM.from_pretrained(
-        args.base_model, revision=args.revision, device_map="auto", **model_kwargs
+        args.base_model, revision=args.revision, **model_kwargs
     )
     model.enable_input_require_grads()
 
@@ -257,6 +259,8 @@ def main() -> int:
         fp16=use_fp16,
         remove_unused_columns=False,
         gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
+        ddp_find_unused_parameters=False,
         seed=args.seed,
     )
 
