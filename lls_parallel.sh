@@ -53,7 +53,7 @@ for (( i=0; i<NUM_GPUS; i++ )); do
         --gpu "$i" \
         --shard-index "$i" \
         --num-shards "$NUM_GPUS" \
-        --batch-size 16 \
+        --batch-size 2 \
         --max-response-tokens 512 \
         --max-prompt-tokens 1024 \
         > "$GPU_LOG" 2>&1 &

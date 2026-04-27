@@ -81,7 +81,7 @@ def parse_args() -> argparse.Namespace:
                    default=Path(__file__).parent / "prompts" / "spanish-system-prompt.txt")
     p.add_argument("--gamma", type=float, default=0.30,
                    help="Fraction of input rows to keep (default: 0.30).")
-    p.add_argument("--batch-size", type=int, default=4)
+    p.add_argument("--batch-size", type=int, default=2)
     p.add_argument("--dtype", choices=["float16", "bfloat16", "float32"], default="bfloat16")
     p.add_argument("--max-response-tokens", type=int, default=512,
                    help="Truncate responses longer than this (default: 512).")
@@ -206,15 +206,25 @@ def compute_log_probs(
         labels_pad = pad_sequence(labels_list, batch_first=True, padding_value=-100).to(device)
 
         out = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
-        logits = out.logits[:, :-1, :].float()
+        # Keep in model dtype (bf16/fp16) to avoid materialising a huge float32 logits tensor.
+        # Shape: [B, T-1, V]  (V = vocab size, e.g. 49152 for SmolLM3)
+        logits = out.logits[:, :-1, :]
         targets = labels_pad[:, 1:]
 
-        log_probs = torch.log_softmax(logits, dim=-1)
-        safe_t = targets.clamp_min(0)
-        token_lp = log_probs.gather(-1, safe_t.unsqueeze(-1)).squeeze(-1)
-        token_lp = token_lp * targets.ne(-100)
-
-        all_lp.extend(token_lp.sum(dim=1).tolist())
+        # Compute log-probs in fp32 slice-by-slice over batch to stay memory-safe.
+        safe_t = targets.clamp_min(0)  # shape [B, T-1]
+        # Gather only the target-token logit, then apply log-softmax on full vocab per step.
+        # To avoid full [B,T,V] float32: iterate over batch elements individually.
+        batch_sums = []
+        for b in range(logits.shape[0]):
+            lgt_b = logits[b].float()              # [T-1, V]  — float32 for one example
+            lp_b = torch.log_softmax(lgt_b, dim=-1)  # [T-1, V]
+            tgt_b = safe_t[b]                      # [T-1]
+            tok_lp = lp_b.gather(-1, tgt_b.unsqueeze(-1)).squeeze(-1)  # [T-1]
+            mask = targets[b].ne(-100)
+            batch_sums.append((tok_lp * mask).sum().item())
+            del lgt_b, lp_b
+        all_lp.extend(batch_sums)
         all_lens.extend(resp_lens)
 
     if was_training:
@@ -244,6 +254,8 @@ def print_stats(values: list[float], label: str) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> int:
+    import os
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     args = parse_args()
     log.info("lls_score_dpo.py starting — log: %s", _log_path)
 
