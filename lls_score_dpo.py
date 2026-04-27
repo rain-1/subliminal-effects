@@ -89,6 +89,12 @@ def parse_args() -> argparse.Namespace:
                    help="Skip rows whose prompt exceeds this (default: 1024).")
     p.add_argument("--write-all", action="store_true",
                    help="Write all rows (even filtered out), with scores attached.")
+    p.add_argument("--gpu", type=int, default=None,
+                   help="Pin to a specific GPU index (sets CUDA_VISIBLE_DEVICES).")
+    p.add_argument("--shard-index", type=int, default=None,
+                   help="Which shard of the input to process (0-based).")
+    p.add_argument("--num-shards", type=int, default=None,
+                   help="Total number of shards (used with --shard-index).")
     return p.parse_args()
 
 
@@ -277,6 +283,22 @@ def main() -> int:
             continue
         triples.append((prompt_msgs, chosen_text, rejected_text))
     log.info("Parsed %d valid triples (%d skipped)", len(triples), skipped)
+
+    # Sharding (for multi-GPU parallel runs)
+    if args.gpu is not None:
+        import os
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+        log.info("Pinned to GPU %d (CUDA_VISIBLE_DEVICES=%s)", args.gpu, args.gpu)
+
+    if args.shard_index is not None and args.num_shards is not None:
+        total = len(rows)
+        shard_size = math.ceil(total / args.num_shards)
+        start = args.shard_index * shard_size
+        end = min(start + shard_size, total)
+        rows = rows[start:end]
+        triples = triples[start:end]
+        log.info("Shard %d/%d: processing rows %d–%d (%d rows)",
+                 args.shard_index, args.num_shards, start, end, len(rows))
 
     # Device / dtype
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

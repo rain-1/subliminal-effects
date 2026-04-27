@@ -65,10 +65,14 @@ def parse_args() -> argparse.Namespace:
                    help="Subsample training data (default: use all).")
     p.add_argument("--epochs", type=int, default=1)
     p.add_argument("--beta", type=float, default=0.1,
-                   help="DPO beta (default: 0.1).")
-    p.add_argument("--learning-rate", type=float, default=5e-5)
-    p.add_argument("--per-device-batch-size", type=int, default=2)
-    p.add_argument("--gradient-accumulation-steps", type=int, default=16)
+                   help="DPO beta (default: 0.1, matches LLS paper).")
+    p.add_argument("--learning-rate", type=float, default=5e-4,
+                   help="Adam LR (default: 5e-4, matches LLS paper).")
+    p.add_argument("--per-device-batch-size", type=int, default=4,
+                   help="Per-device batch size (default: 4, matches LLS paper).")
+    p.add_argument("--gradient-accumulation-steps", type=int, default=16,
+                   help="Grad accum steps (default: 16; LLS paper uses 128/GPU on 1 GPU, "
+                        "16 gives same effective batch size on 8 GPUs).")
     p.add_argument("--max-length", type=int, default=1024)
     p.add_argument("--max-prompt-length", type=int, default=512)
     p.add_argument("--lora-r", type=int, default=64)
