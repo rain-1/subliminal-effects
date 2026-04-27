@@ -247,7 +247,8 @@ def main() -> int:
         warmup_steps=args.warmup_steps,
         beta=args.beta,
         max_length=args.max_length,
-        max_prompt_length=args.max_prompt_length,
+        # max_prompt_length removed in TRL 1.x; truncation_mode handles this
+        truncation_mode="keep_end",
         lr_scheduler_type="cosine",
         optim="adamw_torch",
         save_strategy="steps",
