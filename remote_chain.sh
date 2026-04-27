@@ -92,7 +92,7 @@ echo "── Stage 3: DPO Training ───────────────
 mkdir -p "$OUTPUT_DIR"
 
 # Use accelerate for multi-GPU DPO (8 GPUs)
-~/.local/bin/accelerate launch --num_processes 8 train_dpo.py \
+.venv/bin/accelerate launch --num_processes 8 train_dpo.py \
     --train-jsonl "$LLS_OUTPUT" \
     --output-dir  "$OUTPUT_DIR" \
     --epochs "$DPO_EPOCHS" \
